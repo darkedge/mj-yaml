@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void Print(const mj::ParserEvent& parserEvent)
+void Print(const mj::YamlParserEvent& parserEvent)
 {
 }
 
@@ -15,10 +15,10 @@ void BeginParse(char* str)
   p.pFreeFn  = free;
   p.input    = str;
 
-  mj::ParserEvent event          = {};
-  mj::EParserEventType eventType = mj::EParserEventType::None;
+  mj::YamlParserEvent event      = {};
+  mj::EYamlParserEventType eventType = mj::EYamlParserEventType::None;
 
-  while (eventType != mj::EParserEventType::StreamEnd)
+  while (eventType != mj::EYamlParserEventType::StreamEnd)
   {
     bool success = p.Parse(event);
     if (success)

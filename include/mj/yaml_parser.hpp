@@ -3,7 +3,7 @@
 
 namespace mj
 {
-enum class EParserEventType
+enum class EYamlParserEventType
 {
   None,
   StreamStart,
@@ -18,12 +18,12 @@ enum class EParserEventType
   MappingEnd
 };
 
-struct ParserEvent
+struct YamlParserEvent
 {
-  EParserEventType type;
+  EYamlParserEventType type;
 };
 
-enum class EParserState
+enum class EYamlParserState
 {
   StreamStart,
   ImplicitDocumentStart,
@@ -56,9 +56,27 @@ struct YamlParser
   void* (*pAllocFn)(size_t) = nullptr;
   void (*pFreeFn)(void*)    = nullptr;
   char* input               = nullptr;
-  EParserState state        = EParserState::StreamStart;
+  EYamlParserState state    = EYamlParserState::StreamStart;
 
-  bool Parse(ParserEvent& parserEvent);
+public:
+  bool Parse(YamlParserEvent& parserEvent);
+
+private:
+  bool ParseStreamStart(YamlParserEvent& event);
+  bool ParseDocumentStart(YamlParserEvent& event, bool isImplicit);
+  bool ParseDocumentContent(YamlParserEvent& event);
+  bool ParseDocumentEnd(YamlParserEvent& event);
+  bool ParseNode(YamlParserEvent& event, bool isBlock, bool isIndentless);
+  bool ParseBlockSequenceEntry(YamlParserEvent& event, bool isFirst);
+  bool ParseIndentlessSequenceEntry(YamlParserEvent& event);
+  bool ParseBlockMappingKey(YamlParserEvent& event, bool isFirst);
+  bool ParseBlockMappingValue(YamlParserEvent& event);
+  bool ParseFlowSequenceEntry(YamlParserEvent& event, bool isFirst);
+  bool ParseFlowSequenceEntryMappingKey(YamlParserEvent& event);
+  bool ParseFlowSequenceEntryMappingValue(YamlParserEvent& event);
+  bool ParseFlowSequenceEntryMappingEnd(YamlParserEvent& event);
+  bool ParseFlowMappingKey(YamlParserEvent& event, bool isFirst);
+  bool ParseFlowMappingValue(YamlParserEvent& event, bool isEmpty);
 };
 
 } // namespace mj
