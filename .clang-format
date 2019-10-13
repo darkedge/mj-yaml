@@ -9,7 +9,7 @@ ObjCSpaceAfterProperty: true
 ObjCSpaceBeforeProtocolList: true
 PointerBindsToType: false
 SortIncludes: false
-AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
 PointerAlignment: Left
 SpacesBeforeTrailingComments: 1
 TabWidth: 4
