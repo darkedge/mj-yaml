@@ -1,10 +1,9 @@
 #include "mj/yaml_parser.hpp"
 
-#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 
-void Print(const mj::YamlParserEvent& parserEvent)
+void Print(const mj::YamlEvent& parserEvent)
 {
 }
 
@@ -15,10 +14,10 @@ void BeginParse(char* str)
   p.pFreeFn  = free;
   p.input    = str;
 
-  mj::YamlParserEvent event      = {};
-  mj::EYamlParserEventType eventType = mj::EYamlParserEventType::None;
+  mj::YamlEvent event      = {};
+  mj::EYamlEventType eventType = mj::EYamlEventType::None;
 
-  while (eventType != mj::EYamlParserEventType::StreamEnd)
+  while (eventType != mj::EYamlEventType::StreamEnd)
   {
     bool success = p.Parse(event);
     if (success)
