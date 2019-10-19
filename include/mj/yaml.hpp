@@ -58,8 +58,8 @@ enum class EYamlEncoding
 
 struct YamlVersionDirective
 {
-  int32_t major;
-  int32_t minor;
+  int32_t major = 0;
+  int32_t minor = 0;
 };
 
 struct YamlTagDirective
@@ -89,65 +89,68 @@ struct YamlMark
 
 struct YamlEvent
 {
-  EYamlEventType type;
+  EYamlEventType type = EYamlEventType::None;
 
-  union {
-    struct
-    {
-      EYamlEncoding encoding;
-    } stream_start;
+  struct stream_start_t
+  {
+    EYamlEncoding encoding = EYamlEncoding::Any;
+  };
 
-    struct
-    {
-      YamlVersionDirective* version_directive;
+  struct tag_directives_t
+  {
+    YamlTagDirective* start = nullptr;
+    YamlTagDirective* end   = nullptr;
+  };
 
-      struct
-      {
-        YamlTagDirective* start;
-        YamlTagDirective* end;
-      } tag_directives;
+  struct document_start_t
+  {
+    YamlVersionDirective* version_directive = nullptr;
 
-      bool implicit;
-    } document_start;
+    tag_directives_t tag_directives;
 
-    struct
-    {
-      bool implicit;
-    } document_end;
+    bool implicit = false;
+  };
 
-    struct
-    {
-      uint8_t* anchor;
-    } alias;
+  struct document_end_t
+  {
+    bool implicit = false;
+  };
 
-    struct
-    {
-      uint8_t* anchor;
-      uint8_t* tag;
-      uint8_t* value;
-      size_t length;
-      bool plain_implicit;
-      bool quoted_implicit;
-      EYamlScalarStyle style;
-    } scalar;
+  struct alias_t
+  {
+    uint8_t* anchor = nullptr;
+  };
 
-    struct
-    {
-      uint8_t* anchor;
-      uint8_t* tag;
-      int implicit;
-      EYamlSequenceStyle style;
-    } sequence_start;
+  struct scalar_t
+  {
+    uint8_t* anchor        = nullptr;
+    uint8_t* tag           = nullptr;
+    uint8_t* value         = nullptr;
+    size_t length          = 0;
+    bool plain_implicit    = false;
+    bool quoted_implicit   = false;
+    EYamlScalarStyle style = EYamlScalarStyle::Any;
+  };
 
-    struct
-    {
-      uint8_t* anchor;
-      uint8_t* tag;
-      int implicit;
-      EYamlMappingStyle style;
-    } mapping_start;
+  struct sequence_start_t
+  {
+    uint8_t* anchor          = nullptr;
+    uint8_t* tag             = nullptr;
+    int implicit             = 0;
+    EYamlSequenceStyle style = EYamlSequenceStyle::Any;
+  };
 
-  } data;
+  struct mapping_start_t
+  {
+    uint8_t* anchor         = nullptr;
+    uint8_t* tag            = nullptr;
+    int implicit            = 0;
+    EYamlMappingStyle style = EYamlMappingStyle::Any;
+  };
+
+  std::variant<stream_start_t, document_start_t, document_end_t, alias_t, scalar_t,
+               sequence_start_t, mapping_start_t>
+      data;
 
   YamlMark start_mark;
   YamlMark end_mark;
@@ -209,37 +212,37 @@ struct YamlToken
 
   struct alias_t
   {
-    uint8_t* value;
+    uint8_t* value = nullptr;
   };
 
   struct anchor_t
   {
-    uint8_t* value;
+    uint8_t* value = nullptr;
   };
 
   struct tag_t
   {
-    uint8_t* handle;
-    uint8_t* suffix;
+    uint8_t* handle = nullptr;
+    uint8_t* suffix = nullptr;
   };
 
   struct scalar_t
   {
-    uint8_t* value;
-    size_t length;
+    uint8_t* value         = nullptr;
+    size_t length          = 0;
     EYamlScalarStyle style = EYamlScalarStyle::Any;
   };
 
   struct version_directive_t
   {
-    int major;
-    int minor;
+    int major = 0;
+    int minor = 0;
   };
 
   struct tag_directive_t
   {
-    uint8_t* handle;
-    uint8_t* prefix;
+    uint8_t* handle = nullptr;
+    uint8_t* prefix = nullptr;
   };
 
   EYamlTokenType type = EYamlTokenType::None;
@@ -283,8 +286,24 @@ enum class EYamlNodeType
 
 struct YamlNodePair
 {
-  int key;
-  int value;
+  int key   = 0;
+  int value = 0;
+};
+
+template <typename T>
+struct YamlStack
+{
+  T* start = nullptr;
+  T* end   = nullptr;
+  T* top   = nullptr;
+
+  bool Init(YamlParser& parser);
+  void Del(YamlParser& parser);
+  bool Empty();
+  bool Limit(YamlParser& parser, size_t size);
+  bool Push(YamlParser& parser, const T& value);
+  const T& Pop();
+  bool Extend(YamlParser& parser);
 };
 
 struct YamlNode
@@ -293,37 +312,26 @@ struct YamlNode
 
   uint8_t* tag;
 
-  union {
-    struct
-    {
-      uint8_t* value;
-      size_t length;
-      EYamlScalarStyle style;
-    } scalar;
+  struct scalar_t
+  {
+    uint8_t* value         = nullptr;
+    size_t length          = 0;
+    EYamlScalarStyle style = EYamlScalarStyle::Any;
+  };
 
-    struct
-    {
-      struct
-      {
-        YamlNode* start;
-        YamlNode* end;
-        YamlNode* top;
-      } items;
-      EYamlSequenceStyle style;
-    } sequence;
+  struct sequence_t
+  {
+    YamlStack<YamlNode> items;
+    EYamlSequenceStyle style = EYamlSequenceStyle::Any;
+  };
 
-    struct
-    {
-      struct
-      {
-        YamlNodePair* start;
-        YamlNodePair* end;
-        YamlNodePair* top;
-      } pairs;
-      EYamlMappingStyle style;
-    } mapping;
+  struct mapping_t
+  {
+    YamlStack<YamlNodePair> pairs;
+    EYamlMappingStyle style = EYamlMappingStyle::Any;
+  };
 
-  } data;
+  std::variant<scalar_t, sequence_t, mapping_t> data;
 
   YamlMark start_mark;
   YamlMark end_mark;
@@ -331,23 +339,18 @@ struct YamlNode
 
 struct YamlDocument
 {
-  struct
-  {
-    YamlNode* start;
-    YamlNode* end;
-    YamlNode* top;
-  } nodes;
+  YamlStack<YamlNode> nodes;
 
-  YamlVersionDirective* version_directive;
+  YamlVersionDirective* version_directive = nullptr;
 
   struct
   {
-    YamlTagDirective* start;
-    YamlTagDirective* end;
+    YamlTagDirective* start = nullptr;
+    YamlTagDirective* end   = nullptr;
   } tag_directives;
 
-  bool start_implicit;
-  bool end_implicit;
+  bool start_implicit = false;
+  bool end_implicit   = false;
 
   YamlMark start_mark;
   YamlMark end_mark;
@@ -357,9 +360,9 @@ typedef int yaml_read_handler_t(void* data, unsigned char* buffer, size_t size, 
 
 struct YamlSimpleKey
 {
-  bool possible;
-  bool required;
-  size_t token_number;
+  bool possible       = false;
+  bool required       = false;
+  size_t token_number = 0;
   YamlMark mark;
 };
 
@@ -430,21 +433,21 @@ struct YamlString
 
 struct YamlBuffer : public YamlString
 {
-  uint8_t* last;
+  uint8_t* last = nullptr;
 };
 
 struct YamlRawBuffer
 {
-  unsigned char* start;
-  unsigned char* end;
-  unsigned char* pointer;
-  unsigned char* last;
+  unsigned char* start   = nullptr;
+  unsigned char* end     = nullptr;
+  unsigned char* pointer = nullptr;
+  unsigned char* last    = nullptr;
 };
 
 struct YamlAlias
 {
-  uint8_t* anchor;
-  int index;
+  uint8_t* anchor = nullptr;
+  int index       = 0;
   YamlMark mark;
 };
 
@@ -454,28 +457,12 @@ typedef void (*YamlFreeFn)(void* ptr);
 typedef char* (*YamlStrdupFn)(const char*);
 
 template <typename T>
-struct YamlStack
-{
-  T* start;
-  T* end;
-  T* top;
-
-  bool Init(YamlParser& parser);
-  void Del(YamlParser& parser);
-  bool Empty();
-  bool Limit(YamlParser& parser, size_t size);
-  bool Push(YamlParser& parser, const T& value);
-  const T& Pop();
-  bool Extend(YamlParser& parser);
-};
-
-template <typename T>
 struct YamlQueue
 {
-  T* start;
-  T* end;
-  T* head;
-  T* tail;
+  T* start = nullptr;
+  T* end   = nullptr;
+  T* head  = nullptr;
+  T* tail  = nullptr;
 
   bool Init(YamlParser& parser, size_t size);
   void Del(YamlParser& parser);
@@ -488,27 +475,25 @@ struct YamlQueue
 
 struct YamlParser
 {
-  YamlMallocFn Malloc;
-  YamlReallocFn Realloc;
-  YamlFreeFn Free;
-  YamlStrdupFn Strdup;
+  YamlMallocFn Malloc   = nullptr;
+  YamlReallocFn Realloc = nullptr;
+  YamlFreeFn Free       = nullptr;
+  YamlStrdupFn Strdup   = nullptr;
 
   bool StateMachine(YamlEvent& parserEvent);
-  EYamlError error;
+  EYamlError error = EYamlError::None;
   bool ExtendString(YamlString& string);
   bool JoinString(YamlString& a, YamlString& b);
   bool Parse(YamlEvent& event);
 
-  union {
-    struct
-    {
-      const unsigned char* start;
-      const unsigned char* end;
-      const unsigned char* current;
-    } string;
+  struct string_t
+  {
+    const unsigned char* start   = nullptr;
+    const unsigned char* end     = nullptr;
+    const unsigned char* current = nullptr;
+  };
 
-    FILE* file;
-  } input;
+  std::variant<string_t, FILE*> input;
 
 private:
   void SkipToken();
@@ -600,47 +585,47 @@ private:
   bool SetParserErrorContext(const char* context, YamlMark context_mark, const char* problem,
                              YamlMark problem_mark);
 
-  const char* problem;
-  size_t problem_offset;
-  int problem_value;
+  const char* problem   = nullptr;
+  size_t problem_offset = 0;
+  int problem_value     = 0;
   YamlMark problem_mark;
-  const char* context;
+  const char* context = nullptr;
   YamlMark context_mark;
 
-  yaml_read_handler_t* read_handler;
-  void* read_handler_data;
+  yaml_read_handler_t* read_handler = nullptr;
+  void* read_handler_data           = nullptr;
 
-  bool eof;
+  bool eof = false;
   YamlBuffer buffer;
-  size_t unread;
+  size_t unread = 0;
   YamlRawBuffer raw_buffer;
-  EYamlEncoding encoding;
-  size_t offset;
+  EYamlEncoding encoding = EYamlEncoding::Any;
+  size_t offset          = 0;
   YamlMark mark;
-  bool stream_start_produced;
-  bool stream_end_produced;
-  int flow_level;
+  bool stream_start_produced = false;
+  bool stream_end_produced   = false;
+  int flow_level             = 0;
 
   YamlQueue<YamlToken> tokens;
 
-  size_t tokens_parsed;
-  bool token_available;
+  size_t tokens_parsed = 0;
+  bool token_available = false;
 
   YamlStack<int> indents;
 
-  int indent;
-  bool simple_key_allowed;
+  int indent              = 0;
+  bool simple_key_allowed = false;
 
   YamlStack<YamlSimpleKey> simple_keys;
   YamlStack<EYamlParserState> states;
 
-  EYamlParserState state;
+  EYamlParserState state = EYamlParserState::StreamStart;
 
   YamlStack<YamlMark> marks;
   YamlStack<YamlTagDirective> tag_directives;
   YamlStack<YamlAlias> aliases;
 
-  YamlDocument* document;
+  YamlDocument* document = nullptr;
 };
 
 } // namespace mj

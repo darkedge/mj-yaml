@@ -1057,7 +1057,14 @@ bool YamlParser::UpdateBuffer(size_t length)
 
 bool YamlParser::Cache(size_t length)
 {
-  return (this->unread >= length ? 1 : this->UpdateBuffer(length));
+  if (this->unread >= length)
+  {
+    return true;
+  }
+  else
+  {
+    return this->UpdateBuffer(length);
+  }
 }
 
 void YamlParser::Skip()
@@ -3769,7 +3776,7 @@ void YamlEvent::InitStreamStart(EYamlEncoding encoding, const YamlMark& start_ma
                                 const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::StreamStart, start_mark, end_mark);
-  this->data.stream_start.encoding = encoding;
+  std::get<YamlEvent::stream_start_t>(this->data).encoding = encoding;
 }
 
 void YamlEvent::InitStreamEnd(const YamlMark& start_mark, const YamlMark& end_mark)
@@ -3785,21 +3792,21 @@ void YamlEvent::InitDocumentStart(YamlVersionDirective version_directive,
   this->Init(EYamlEventType::DocumentStart, start_mark, end_mark);
 
   // this->data.document_start.version_directive    = version_directive;
-  this->data.document_start.tag_directives.start = tag_directives_start;
-  this->data.document_start.tag_directives.end   = tag_directives_end;
-  this->data.document_start.implicit             = implicit;
+  std::get<YamlEvent::document_start_t>(this->data).tag_directives.start = tag_directives_start;
+  std::get<YamlEvent::document_start_t>(this->data).tag_directives.end   = tag_directives_end;
+  std::get<YamlEvent::document_start_t>(this->data).implicit             = implicit;
 }
 
 void YamlEvent::InitDocumentEnd(bool implicit, const YamlMark& start_mark, const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::DocumentEnd, start_mark, end_mark);
-  this->data.document_end.implicit = implicit;
+  std::get<YamlEvent::document_end_t>(this->data).implicit = implicit;
 }
 
 void YamlEvent::InitAlias(uint8_t* anchor, const YamlMark& start_mark, const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::Alias, start_mark, end_mark);
-  this->data.alias.anchor = anchor;
+  std::get<YamlEvent::alias_t>(this->data).anchor = anchor;
 }
 
 void YamlEvent::InitScalar(uint8_t* anchor, uint8_t* tag, uint8_t* value, size_t length,
@@ -3807,13 +3814,13 @@ void YamlEvent::InitScalar(uint8_t* anchor, uint8_t* tag, uint8_t* value, size_t
                            const YamlMark& start_mark, const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::Scalar, start_mark, end_mark);
-  this->data.scalar.anchor          = anchor;
-  this->data.scalar.tag             = tag;
-  this->data.scalar.value           = value;
-  this->data.scalar.length          = length;
-  this->data.scalar.plain_implicit  = plain_implicit;
-  this->data.scalar.quoted_implicit = quoted_implicit;
-  this->data.scalar.style           = style;
+  std::get<YamlEvent::scalar_t>(this->data).anchor          = anchor;
+  std::get<YamlEvent::scalar_t>(this->data).tag             = tag;
+  std::get<YamlEvent::scalar_t>(this->data).value           = value;
+  std::get<YamlEvent::scalar_t>(this->data).length          = length;
+  std::get<YamlEvent::scalar_t>(this->data).plain_implicit  = plain_implicit;
+  std::get<YamlEvent::scalar_t>(this->data).quoted_implicit = quoted_implicit;
+  std::get<YamlEvent::scalar_t>(this->data).style           = style;
 }
 
 void YamlEvent::InitSequenceStart(uint8_t* anchor, uint8_t* tag, bool implicit,
@@ -3821,10 +3828,10 @@ void YamlEvent::InitSequenceStart(uint8_t* anchor, uint8_t* tag, bool implicit,
                                   const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::SequenceStart, start_mark, end_mark);
-  this->data.sequence_start.anchor   = anchor;
-  this->data.sequence_start.tag      = tag;
-  this->data.sequence_start.implicit = implicit;
-  this->data.sequence_start.style    = style;
+  std::get<YamlEvent::sequence_start_t>(this->data).anchor   = anchor;
+  std::get<YamlEvent::sequence_start_t>(this->data).tag      = tag;
+  std::get<YamlEvent::sequence_start_t>(this->data).implicit = implicit;
+  std::get<YamlEvent::sequence_start_t>(this->data).style    = style;
 }
 
 void YamlEvent::InitSequenceEnd(const YamlMark& start_mark, const YamlMark& end_mark)
@@ -3837,10 +3844,10 @@ void YamlEvent::InitMappingStart(uint8_t* anchor, uint8_t* tag, bool implicit,
                                  const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::MappingStart, start_mark, end_mark);
-  this->data.mapping_start.anchor   = anchor;
-  this->data.mapping_start.tag      = tag;
-  this->data.mapping_start.implicit = implicit;
-  this->data.mapping_start.style    = style;
+  std::get<YamlEvent::mapping_start_t>(this->data).anchor   = anchor;
+  std::get<YamlEvent::mapping_start_t>(this->data).tag      = tag;
+  std::get<YamlEvent::mapping_start_t>(this->data).implicit = implicit;
+  std::get<YamlEvent::mapping_start_t>(this->data).style    = style;
 }
 
 void YamlEvent::InitMappingEnd(const YamlMark& start_mark, const YamlMark& end_mark)
