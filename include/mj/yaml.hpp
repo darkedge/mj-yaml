@@ -175,6 +175,8 @@ public:
   void InitMappingStart(uint8_t* anchor, uint8_t* tag, bool implicit, EYamlMappingStyle style,
                         const YamlMark& start_mark, const YamlMark& end_mark);
   void InitMappingEnd(const YamlMark& start_mark, const YamlMark& end_mark);
+
+  void Delete(YamlParser& parser);
 }; // YamlEvent
 
 enum class EYamlTokenType
@@ -356,7 +358,7 @@ struct YamlDocument
   YamlMark end_mark;
 };
 
-typedef int yaml_read_handler_t(void* data, unsigned char* buffer, size_t size, size_t* size_read);
+typedef int yaml_read_handler_t(YamlParser& parser, unsigned char* buffer, size_t size, size_t* size_read);
 
 struct YamlSimpleKey
 {
@@ -434,14 +436,14 @@ struct YamlString
 struct YamlBuffer : public YamlString
 {
   uint8_t* last = nullptr;
+
+  bool Init(YamlParser& parser, size_t size);
+  void Del(YamlParser& parser);
 };
 
-struct YamlRawBuffer
+struct YamlRawBuffer : public YamlBuffer
 {
-  unsigned char* start   = nullptr;
-  unsigned char* end     = nullptr;
-  unsigned char* pointer = nullptr;
-  unsigned char* last    = nullptr;
+  //unsigned char* last    = nullptr;
 };
 
 struct YamlAlias
@@ -473,12 +475,22 @@ struct YamlQueue
   bool Extend(YamlParser& parser);
 };
 
+struct YamlFns
+{
+  YamlMallocFn Malloc = nullptr;
+  YamlReallocFn Realloc = nullptr;
+  YamlFreeFn Free = nullptr;
+  YamlStrdupFn Strdup = nullptr;
+};
+
 struct YamlParser
 {
   YamlMallocFn Malloc   = nullptr;
   YamlReallocFn Realloc = nullptr;
   YamlFreeFn Free       = nullptr;
   YamlStrdupFn Strdup   = nullptr;
+
+  YamlParser(const YamlFns& Fns, const unsigned char *input, size_t size);
 
   bool StateMachine(YamlEvent& parserEvent);
   EYamlError error = EYamlError::None;
@@ -493,7 +505,9 @@ struct YamlParser
     const unsigned char* current = nullptr;
   };
 
-  std::variant<string_t, FILE*> input;
+  string_t input;
+
+  //std::variant<string_t, FILE*> input;
 
 private:
   void SkipToken();

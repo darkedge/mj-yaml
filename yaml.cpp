@@ -9,6 +9,17 @@ using namespace mj;
 #define INITIAL_STACK_SIZE 16
 #define INITIAL_QUEUE_SIZE 16
 #define INITIAL_STRING_SIZE 16
+/*
+ * The size of the input raw buffer.
+ */
+#define INPUT_RAW_BUFFER_SIZE 16384
+
+/*
+ * The size of the input buffer.
+ *
+ * It should be possible to decode the whole raw buffer.
+ */
+#define INPUT_BUFFER_SIZE (INPUT_RAW_BUFFER_SIZE * 3)
 
 // YamlString
 
@@ -75,6 +86,34 @@ void YamlString::Del(YamlParser& parser)
   parser.Free(this->start);
   *this = YamlString();
 }
+
+// YamlBuffer
+bool YamlBuffer::Init(YamlParser& parser, size_t size)
+{
+  this->start = (decltype(this->start))parser.Malloc(size);
+  if (this->start)
+  {
+    this->last    = this->start;
+    this->pointer = this->start;
+    this->end     = this->start + (size);
+    return true;
+  }
+  else
+  {
+    parser.error = EYamlError::Parser;
+    return false;
+  }
+}
+
+void YamlBuffer::Del(YamlParser& parser)
+{
+  parser.Free(this->start);
+  this->start   = nullptr;
+  this->pointer = nullptr;
+  this->end     = nullptr;
+}
+
+// YamlParser
 
 bool YamlParser::ExtendString(YamlString& string)
 {
@@ -745,7 +784,7 @@ bool YamlParser::UpdateRawBuffer()
   this->raw_buffer.pointer = this->raw_buffer.start;
 
   // Call the read handler to fill the buffer.
-  if (!this->read_handler(this->read_handler_data, this->raw_buffer.last,
+  if (!this->read_handler(*this, this->raw_buffer.last,
                           this->raw_buffer.end - this->raw_buffer.last, &size_read))
   {
     return this->SetReaderError("input error", this->offset, -1);
@@ -773,7 +812,7 @@ bool YamlParser::UpdateBuffer(size_t length)
   if (this->unread >= length) return true;
 
   // Determine the input encoding if it is not known yet.
-  if (this->encoding != EYamlEncoding::Any)
+  if (this->encoding == EYamlEncoding::Any)
   {
     if (!this->DetermineEncoding())
     {
@@ -3855,6 +3894,50 @@ void YamlEvent::InitMappingEnd(const YamlMark& start_mark, const YamlMark& end_m
   this->Init(EYamlEventType::MappingEnd, start_mark, end_mark);
 }
 
+void YamlEvent::Delete(YamlParser& parser)
+{
+  switch (this->type)
+  {
+  case EYamlEventType::DocumentStart:
+    parser.Free(std::get<document_start_t>(this->data).version_directive);
+    for (YamlTagDirective* tag_directive =
+             std::get<document_start_t>(this->data).tag_directives.start;
+         tag_directive != std::get<document_start_t>(this->data).tag_directives.end;
+         tag_directive++)
+    {
+      parser.Free(tag_directive->handle);
+      parser.Free(tag_directive->prefix);
+    }
+    parser.Free(std::get<document_start_t>(this->data).tag_directives.start);
+    break;
+
+  case EYamlEventType::Alias:
+    parser.Free(std::get<alias_t>(this->data).anchor);
+    break;
+
+  case EYamlEventType::Scalar:
+    parser.Free(std::get<scalar_t>(this->data).anchor);
+    parser.Free(std::get<scalar_t>(this->data).tag);
+    parser.Free(std::get<scalar_t>(this->data).value);
+    break;
+
+  case EYamlEventType::SequenceStart:
+    parser.Free(std::get<sequence_start_t>(this->data).anchor);
+    parser.Free(std::get<sequence_start_t>(this->data).tag);
+    break;
+
+  case EYamlEventType::MappingStart:
+    parser.Free(std::get<mapping_start_t>(this->data).anchor);
+    parser.Free(std::get<mapping_start_t>(this->data).tag);
+    break;
+
+  default:
+    break;
+  }
+
+  *this = {};
+}
+
 // YamlParser
 
 YamlToken* YamlParser::PeekToken()
@@ -4166,6 +4249,71 @@ bool YamlParser::SetParserErrorContext(const char* context, YamlMark context_mar
   this->problem_mark = problem_mark;
 
   return false;
+}
+
+/*
+ * String read handler.
+ */
+static int yaml_string_read_handler(YamlParser& parser, unsigned char* buffer, size_t size,
+                                    size_t* size_read)
+{
+  if (parser.input.current == parser.input.end)
+  {
+    *size_read = 0;
+    return 1;
+  }
+
+  if (size > (size_t)(parser.input.end - parser.input.current))
+  {
+    size = parser.input.end - parser.input.current;
+  }
+
+  memcpy(buffer, parser.input.current, size);
+  parser.input.current += size;
+  *size_read = size;
+  return 1;
+}
+
+YamlParser::YamlParser(const YamlFns& Fns, const unsigned char* input, size_t size)
+{
+  assert(!this->read_handler); /* You can set the source only once. */
+
+  this->Malloc  = Fns.Malloc;
+  this->Realloc = Fns.Realloc;
+  this->Free    = Fns.Free;
+  this->Strdup  = Fns.Strdup;
+
+  this->read_handler      = yaml_string_read_handler;
+  this->read_handler_data = this;
+
+  this->input.start   = input;
+  this->input.current = input;
+  this->input.end     = input + size;
+
+  if (!this->raw_buffer.Init(*this, INPUT_RAW_BUFFER_SIZE)) goto error;
+  if (!this->buffer.Init(*this, INPUT_BUFFER_SIZE)) goto error;
+  if (!this->tokens.Init(*this, INITIAL_QUEUE_SIZE)) goto error;
+  if (!this->indents.Init(*this)) goto error;
+  if (!this->simple_keys.Init(*this)) goto error;
+  if (!this->states.Init(*this)) goto error;
+  if (!this->marks.Init(*this)) goto error;
+  if (!this->tag_directives.Init(*this)) goto error;
+
+  return;
+
+error:
+
+  // TODO: this is moved to the constructor but this can
+  // currently fail
+
+  this->raw_buffer.Del(*this);
+  this->buffer.Del(*this);
+  this->tokens.Del(*this);
+  this->indents.Del(*this);
+  this->simple_keys.Del(*this);
+  this->states.Del(*this);
+  this->marks.Del(*this);
+  this->tag_directives.Del(*this);
 }
 
 /*

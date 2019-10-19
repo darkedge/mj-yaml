@@ -3,17 +3,86 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void Print(const mj::YamlEvent& parserEvent)
+#define INDENT "  "
+#define STRVAL(x) ((x) ? (char*)(x) : "")
+
+void indent(int level)
 {
+  int i;
+  for (i = 0; i < level; i++)
+  {
+    printf("%s", INDENT);
+  }
 }
 
-void BeginParse(char* str)
+void print_event(const mj::YamlEvent& event)
 {
-  mj::YamlParser p;
-  p.Malloc = malloc;
-  p.Realloc = realloc;
-  p.Free = free;
-  p.Strdup = _strdup;
+  static int level = 0;
+
+  switch (event.type)
+  {
+  case mj::EYamlEventType::None:
+    indent(level);
+    printf("no-event\n");
+    break;
+  case mj::EYamlEventType::StreamStart:
+    indent(level++);
+    printf("stream-start-event\n");
+    break;
+  case mj::EYamlEventType::StreamEnd:
+    indent(--level);
+    printf("stream-end-event\n");
+    break;
+  case mj::EYamlEventType::DocumentStart:
+    indent(level++);
+    printf("document-start-event\n");
+    break;
+  case mj::EYamlEventType::DocumentEnd:
+    indent(--level);
+    printf("document-end-event\n");
+    break;
+  case mj::EYamlEventType::Alias:
+    indent(level);
+    printf("alias-event\n");
+    break;
+  case mj::EYamlEventType::Scalar:
+    indent(level);
+    printf("scalar-event={value=\"%s\", length=%d}\n",
+      STRVAL(std::get<mj::YamlEvent::scalar_t>(event.data).value),
+      (int)std::get<mj::YamlEvent::scalar_t>(event.data).length);
+    break;
+  case mj::EYamlEventType::SequenceStart:
+    indent(level++);
+    printf("sequence-start-event\n");
+    break;
+  case mj::EYamlEventType::SequenceEnd:
+    indent(--level);
+    printf("sequence-end-event\n");
+    break;
+  case mj::EYamlEventType::MappingStart:
+    indent(level++);
+    printf("mapping-start-event\n");
+    break;
+  case mj::EYamlEventType::MappingEnd:
+    indent(--level);
+    printf("mapping-end-event\n");
+    break;
+  }
+  if (level < 0)
+  {
+    fprintf(stderr, "indentation underflow!\n");
+    level = 0;
+  }
+}
+
+void BeginParse(char* str, size_t size)
+{
+  mj::YamlFns Fns;
+  Fns.Malloc = malloc;
+  Fns.Realloc = realloc;
+  Fns.Free = free;
+  Fns.Strdup = _strdup;
+  mj::YamlParser p(Fns, (const unsigned char*)str, size);
 
   //p.input    = str;
 
@@ -25,9 +94,9 @@ void BeginParse(char* str)
     bool success = p.Parse(event);
     if (success)
     {
-      Print(event);
+      print_event(event);
       eventType = event.type;
-      // yaml_event_delete(&event);
+      event.Delete(p);
     }
     else
     {
@@ -51,7 +120,7 @@ int main()
     fclose(f);
     string[fsize] = '\0';
 
-    BeginParse(string);
+    BeginParse(string, fsize);
     free(string);
   }
 }
