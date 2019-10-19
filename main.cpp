@@ -1,4 +1,4 @@
-#include "mj/yaml_parser.hpp"
+#include "mj/yaml.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,11 +10,14 @@ void Print(const mj::YamlEvent& parserEvent)
 void BeginParse(char* str)
 {
   mj::YamlParser p;
-  p.pAllocFn = malloc;
-  p.pFreeFn  = free;
-  p.input    = str;
+  p.Malloc = malloc;
+  p.Realloc = realloc;
+  p.Free = free;
+  p.Strdup = _strdup;
 
-  mj::YamlEvent event      = {};
+  //p.input    = str;
+
+  mj::YamlEvent event          = {};
   mj::EYamlEventType eventType = mj::EYamlEventType::None;
 
   while (eventType != mj::EYamlEventType::StreamEnd)
@@ -24,7 +27,7 @@ void BeginParse(char* str)
     {
       Print(event);
       eventType = event.type;
-      //yaml_event_delete(&event);
+      // yaml_event_delete(&event);
     }
     else
     {
