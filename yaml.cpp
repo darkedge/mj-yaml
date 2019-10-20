@@ -3815,7 +3815,10 @@ void YamlEvent::InitStreamStart(EYamlEncoding encoding, const YamlMark& start_ma
                                 const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::StreamStart, start_mark, end_mark);
-  std::get<YamlEvent::stream_start_t>(this->data).encoding = encoding;
+
+  stream_start_t stream_start;
+  stream_start.encoding = encoding;
+  this->data = stream_start;
 }
 
 void YamlEvent::InitStreamEnd(const YamlMark& start_mark, const YamlMark& end_mark)
@@ -3823,29 +3826,37 @@ void YamlEvent::InitStreamEnd(const YamlMark& start_mark, const YamlMark& end_ma
   this->Init(EYamlEventType::StreamEnd, start_mark, end_mark);
 }
 
-void YamlEvent::InitDocumentStart(YamlVersionDirective version_directive,
+void YamlEvent::InitDocumentStart(YamlVersionDirective* version_directive,
                                   YamlTagDirective* tag_directives_start,
                                   YamlTagDirective* tag_directives_end, bool implicit,
                                   const YamlMark& start_mark, const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::DocumentStart, start_mark, end_mark);
 
-  // this->data.document_start.version_directive    = version_directive;
-  std::get<YamlEvent::document_start_t>(this->data).tag_directives.start = tag_directives_start;
-  std::get<YamlEvent::document_start_t>(this->data).tag_directives.end   = tag_directives_end;
-  std::get<YamlEvent::document_start_t>(this->data).implicit             = implicit;
+  document_start_t document_start;
+  document_start.version_directive    = version_directive;
+  document_start.tag_directives.start = tag_directives_start;
+  document_start.tag_directives.end   = tag_directives_end;
+  document_start.implicit             = implicit;
+  this->data = document_start;
 }
 
 void YamlEvent::InitDocumentEnd(bool implicit, const YamlMark& start_mark, const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::DocumentEnd, start_mark, end_mark);
-  std::get<YamlEvent::document_end_t>(this->data).implicit = implicit;
+
+  document_end_t document_end;
+  document_end.implicit = implicit;
+  this->data = document_end;
 }
 
 void YamlEvent::InitAlias(uint8_t* anchor, const YamlMark& start_mark, const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::Alias, start_mark, end_mark);
-  std::get<YamlEvent::alias_t>(this->data).anchor = anchor;
+
+  alias_t alias;
+  alias.anchor = anchor;
+  this->data = alias;
 }
 
 void YamlEvent::InitScalar(uint8_t* anchor, uint8_t* tag, uint8_t* value, size_t length,
@@ -3853,13 +3864,16 @@ void YamlEvent::InitScalar(uint8_t* anchor, uint8_t* tag, uint8_t* value, size_t
                            const YamlMark& start_mark, const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::Scalar, start_mark, end_mark);
-  std::get<YamlEvent::scalar_t>(this->data).anchor          = anchor;
-  std::get<YamlEvent::scalar_t>(this->data).tag             = tag;
-  std::get<YamlEvent::scalar_t>(this->data).value           = value;
-  std::get<YamlEvent::scalar_t>(this->data).length          = length;
-  std::get<YamlEvent::scalar_t>(this->data).plain_implicit  = plain_implicit;
-  std::get<YamlEvent::scalar_t>(this->data).quoted_implicit = quoted_implicit;
-  std::get<YamlEvent::scalar_t>(this->data).style           = style;
+
+  scalar_t scalar;
+  scalar.anchor          = anchor;
+  scalar.tag             = tag;
+  scalar.value           = value;
+  scalar.length          = length;
+  scalar.plain_implicit  = plain_implicit;
+  scalar.quoted_implicit = quoted_implicit;
+  scalar.style           = style;
+  this->data = scalar;
 }
 
 void YamlEvent::InitSequenceStart(uint8_t* anchor, uint8_t* tag, bool implicit,
@@ -3867,10 +3881,13 @@ void YamlEvent::InitSequenceStart(uint8_t* anchor, uint8_t* tag, bool implicit,
                                   const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::SequenceStart, start_mark, end_mark);
-  std::get<YamlEvent::sequence_start_t>(this->data).anchor   = anchor;
-  std::get<YamlEvent::sequence_start_t>(this->data).tag      = tag;
-  std::get<YamlEvent::sequence_start_t>(this->data).implicit = implicit;
-  std::get<YamlEvent::sequence_start_t>(this->data).style    = style;
+
+  sequence_start_t sequence_start;
+  sequence_start.anchor   = anchor;
+  sequence_start.tag      = tag;
+  sequence_start.implicit = implicit;
+  sequence_start.style    = style;
+  this->data = sequence_start;
 }
 
 void YamlEvent::InitSequenceEnd(const YamlMark& start_mark, const YamlMark& end_mark)
@@ -3883,10 +3900,13 @@ void YamlEvent::InitMappingStart(uint8_t* anchor, uint8_t* tag, bool implicit,
                                  const YamlMark& end_mark)
 {
   this->Init(EYamlEventType::MappingStart, start_mark, end_mark);
-  std::get<YamlEvent::mapping_start_t>(this->data).anchor   = anchor;
-  std::get<YamlEvent::mapping_start_t>(this->data).tag      = tag;
-  std::get<YamlEvent::mapping_start_t>(this->data).implicit = implicit;
-  std::get<YamlEvent::mapping_start_t>(this->data).style    = style;
+
+  mapping_start_t mapping_start;
+  mapping_start.anchor   = anchor;
+  mapping_start.tag      = tag;
+  mapping_start.implicit = implicit;
+  mapping_start.style    = style;
+  this->data = mapping_start;
 }
 
 void YamlEvent::InitMappingEnd(const YamlMark& start_mark, const YamlMark& end_mark)
@@ -3953,6 +3973,11 @@ void YamlParser::SkipToken()
   this->tokens.head++;
 }
 
+/*
+ * Parse the production:
+ * stream   ::= STREAM-START implicit_document? explicit_document* STREAM-END
+ *              ************
+ */
 bool YamlParser::ParseStreamStart(YamlEvent& event)
 {
   YamlToken* token = this->PeekToken();
@@ -3977,74 +4002,843 @@ bool YamlParser::ParseStreamStart(YamlEvent& event)
   return true;
 }
 
+/*
+ * Parse the productions:
+ * implicit_document    ::= block_node DOCUMENT-END*
+ *                          *
+ * explicit_document    ::= DIRECTIVE* DOCUMENT-START block_node? DOCUMENT-END*
+ *                          *************************
+ */
 bool YamlParser::ParseDocumentStart(YamlEvent& event, bool isImplicit)
 {
-  return true;
+  YamlToken* token;
+  YamlVersionDirective* version_directive = nullptr;
+  struct
+  {
+    YamlTagDirective* start;
+    YamlTagDirective* end;
+  } tag_directives = {nullptr, nullptr};
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  /* Parse extra document end indicators. */
+
+  if (!isImplicit)
+  {
+    while (token->type == EYamlTokenType::DocumentEnd)
+    {
+      this->SkipToken();
+      token = this->PeekToken();
+      if (!token) return 0;
+    }
+  }
+
+  /* Parse an implicit document. */
+
+  if (isImplicit && token->type != EYamlTokenType::VersionDirective &&
+      token->type != EYamlTokenType::TagDirective && token->type != EYamlTokenType::DocumentStart &&
+      token->type != EYamlTokenType::StreamEnd)
+  {
+    if (!this->ProcessDirectives(nullptr, nullptr, nullptr)) return 0;
+    if (!this->states.Push(*this, EYamlParserState::DocumentEnd)) return 0;
+    this->state = EYamlParserState::BlockNode;
+    event.InitDocumentStart(nullptr, nullptr, nullptr, 1, token->start_mark, token->start_mark);
+    return 1;
+  }
+
+  /* Parse an explicit document. */
+
+  else if (token->type != EYamlTokenType::StreamEnd)
+  {
+    YamlMark start_mark, end_mark;
+    start_mark = token->start_mark;
+    if (!this->ProcessDirectives(&version_directive, &tag_directives.start, &tag_directives.end))
+      return 0;
+    token = this->PeekToken();
+    if (!token) goto error;
+    if (token->type != EYamlTokenType::DocumentStart)
+    {
+      this->SetParserError("did not find expected <document start>", token->start_mark);
+      goto error;
+    }
+    if (!this->states.Push(*this, EYamlParserState::DocumentEnd)) goto error;
+    this->state = EYamlParserState::DocumentContent;
+    end_mark    = token->end_mark;
+    event.InitDocumentStart(version_directive, tag_directives.start, tag_directives.end, 0,
+                            start_mark, end_mark);
+    this->SkipToken();
+    version_directive    = nullptr;
+    tag_directives.start = tag_directives.end = nullptr;
+    return 1;
+  }
+
+  /* Parse the stream end. */
+
+  else
+  {
+    this->state = EYamlParserState::End;
+    event.InitStreamEnd(token->start_mark, token->end_mark);
+    this->SkipToken();
+    return 1;
+  }
+
+error:
+  this->Free(version_directive);
+  while (tag_directives.start != tag_directives.end)
+  {
+    this->Free(tag_directives.end[-1].handle);
+    this->Free(tag_directives.end[-1].prefix);
+    tag_directives.end--;
+  }
+  this->Free(tag_directives.start);
+  return 0;
 }
 
+/*
+ * Parse the productions:
+ * explicit_document    ::= DIRECTIVE* DOCUMENT-START block_node? DOCUMENT-END*
+ *                                                    ***********
+ */
 bool YamlParser::ParseDocumentContent(YamlEvent& event)
 {
-  return true;
+  YamlToken* token;
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type == EYamlTokenType::VersionDirective ||
+      token->type == EYamlTokenType::TagDirective || token->type == EYamlTokenType::DocumentStart ||
+      token->type == EYamlTokenType::DocumentEnd || token->type == EYamlTokenType::StreamEnd)
+  {
+    this->state = this->states.Pop();
+    return this->ProcessEmptyScalar(event, token->start_mark);
+  }
+  else
+  {
+    return this->ParseNode(event, 1, 0);
+  }
 }
 
+/*
+ * Parse the productions:
+ * implicit_document    ::= block_node DOCUMENT-END*
+ *                                     *************
+ * explicit_document    ::= DIRECTIVE* DOCUMENT-START block_node? DOCUMENT-END*
+ *                                                                *************
+ */
 bool YamlParser::ParseDocumentEnd(YamlEvent& event)
 {
-  return true;
+  YamlToken* token;
+  YamlMark start_mark, end_mark;
+  int implicit = 1;
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  start_mark = end_mark = token->start_mark;
+
+  if (token->type == EYamlTokenType::DocumentEnd)
+  {
+    end_mark = token->end_mark;
+    this->SkipToken();
+    implicit = 0;
+  }
+
+  while (!this->tag_directives.Empty())
+  {
+    YamlTagDirective tag_directive = this->tag_directives.Pop();
+    this->Free(tag_directive.handle);
+    this->Free(tag_directive.prefix);
+  }
+
+  this->state = EYamlParserState::DocumentStart;
+  event.InitDocumentEnd(implicit, start_mark, end_mark);
+
+  return 1;
 }
 
+/*
+ * Parse the productions:
+ * block_node_or_indentless_sequence    ::=
+ *                          ALIAS
+ *                          *****
+ *                          | properties (block_content | indentless_block_sequence)?
+ *                            **********  *
+ *                          | block_content | indentless_block_sequence
+ *                            *
+ * block_node           ::= ALIAS
+ *                          *****
+ *                          | properties block_content?
+ *                            ********** *
+ *                          | block_content
+ *                            *
+ * flow_node            ::= ALIAS
+ *                          *****
+ *                          | properties flow_content?
+ *                            ********** *
+ *                          | flow_content
+ *                            *
+ * properties           ::= TAG ANCHOR? | ANCHOR TAG?
+ *                          *************************
+ * block_content        ::= block_collection | flow_collection | SCALAR
+ *                                                               ******
+ * flow_content         ::= flow_collection | SCALAR
+ *                                            ******
+ */
 bool YamlParser::ParseNode(YamlEvent& event, bool isBlock, bool isIndentless)
 {
-  return true;
+  YamlToken* token;
+  uint8_t* anchor     = nullptr;
+  uint8_t* tag_handle = nullptr;
+  uint8_t* tag_suffix = nullptr;
+  uint8_t* tag        = nullptr;
+  YamlMark start_mark, end_mark, tag_mark;
+  int implicit;
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type == EYamlTokenType::Alias)
+  {
+    this->state = this->states.Pop();
+    event.InitAlias(std::get<YamlToken::alias_t>(token->data).value, token->start_mark,
+                    token->end_mark);
+    this->SkipToken();
+    return 1;
+  }
+
+  else
+  {
+    start_mark = end_mark = token->start_mark;
+
+    if (token->type == EYamlTokenType::Anchor)
+    {
+      anchor     = std::get<YamlToken::anchor_t>(token->data).value;
+      start_mark = token->start_mark;
+      end_mark   = token->end_mark;
+      this->SkipToken();
+      token = this->PeekToken();
+      if (!token) goto error;
+      if (token->type == EYamlTokenType::Tag)
+      {
+        tag_handle = std::get<YamlToken::tag_t>(token->data).handle;
+        tag_suffix = std::get<YamlToken::tag_t>(token->data).suffix;
+        tag_mark   = token->start_mark;
+        end_mark   = token->end_mark;
+        this->SkipToken();
+        token = this->PeekToken();
+        if (!token) goto error;
+      }
+    }
+    else if (token->type == EYamlTokenType::Tag)
+    {
+      tag_handle = std::get<YamlToken::tag_t>(token->data).handle;
+      tag_suffix = std::get<YamlToken::tag_t>(token->data).suffix;
+      start_mark = tag_mark = token->start_mark;
+      end_mark              = token->end_mark;
+      this->SkipToken();
+      token = this->PeekToken();
+      if (!token) goto error;
+      if (token->type == EYamlTokenType::Anchor)
+      {
+        anchor   = std::get<YamlToken::anchor_t>(token->data).value;
+        end_mark = token->end_mark;
+        this->SkipToken();
+        token = this->PeekToken();
+        if (!token) goto error;
+      }
+    }
+
+    if (tag_handle)
+    {
+      if (!*tag_handle)
+      {
+        tag = tag_suffix;
+        this->Free(tag_handle);
+        tag_handle = tag_suffix = nullptr;
+      }
+      else
+      {
+        YamlTagDirective* tag_directive;
+        for (tag_directive = this->tag_directives.start; tag_directive != this->tag_directives.top;
+             tag_directive++)
+        {
+          if (strcmp((char*)tag_directive->handle, (char*)tag_handle) == 0)
+          {
+            size_t prefix_len = strlen((char*)tag_directive->prefix);
+            size_t suffix_len = strlen((char*)tag_suffix);
+            tag               = (decltype(tag))this->Malloc(prefix_len + suffix_len + 1);
+            if (!tag)
+            {
+              this->error = EYamlError::Memory;
+              goto error;
+            }
+            memcpy(tag, tag_directive->prefix, prefix_len);
+            memcpy(tag + prefix_len, tag_suffix, suffix_len);
+            tag[prefix_len + suffix_len] = '\0';
+            this->Free(tag_handle);
+            this->Free(tag_suffix);
+            tag_handle = tag_suffix = nullptr;
+            break;
+          }
+        }
+        if (!tag)
+        {
+          this->SetParserErrorContext("while parsing a node", start_mark,
+                                      "found undefined tag handle", tag_mark);
+          goto error;
+        }
+      }
+    }
+
+    implicit = (!tag || !*tag);
+    if (isIndentless && token->type == EYamlTokenType::BlockEntry)
+    {
+      end_mark    = token->end_mark;
+      this->state = EYamlParserState::IndentlessSequenceEntry;
+      event.InitSequenceStart(anchor, tag, implicit, EYamlSequenceStyle::Block, start_mark,
+                              end_mark);
+      return 1;
+    }
+    else
+    {
+      if (token->type == EYamlTokenType::Scalar)
+      {
+        int plain_implicit  = 0;
+        int quoted_implicit = 0;
+        end_mark            = token->end_mark;
+        if ((std::get<YamlToken::scalar_t>(token->data).style == EYamlScalarStyle::Plain && !tag) ||
+            (tag && strcmp((char*)tag, "!") == 0))
+        {
+          plain_implicit = 1;
+        }
+        else if (!tag)
+        {
+          quoted_implicit = 1;
+        }
+        this->state = this->states.Pop();
+        event.InitScalar(anchor, tag, std::get<YamlToken::scalar_t>(token->data).value,
+                         std::get<YamlToken::scalar_t>(token->data).length, plain_implicit,
+                         quoted_implicit, std::get<YamlToken::scalar_t>(token->data).style,
+                         start_mark, end_mark);
+        this->SkipToken();
+        return 1;
+      }
+      else if (token->type == EYamlTokenType::FlowSequenceStart)
+      {
+        end_mark    = token->end_mark;
+        this->state = EYamlParserState::FlowSequenceFirstEntry;
+        event.InitSequenceStart(anchor, tag, implicit, EYamlSequenceStyle::Flow, start_mark,
+                                end_mark);
+        return 1;
+      }
+      else if (token->type == EYamlTokenType::FlowMappingStart)
+      {
+        end_mark    = token->end_mark;
+        this->state = EYamlParserState::FlowMappingFirstKey;
+        event.InitMappingStart(anchor, tag, implicit, EYamlMappingStyle::Flow, start_mark,
+                               end_mark);
+        return 1;
+      }
+      else if (isBlock && token->type == EYamlTokenType::BlockSequenceStart)
+      {
+        end_mark    = token->end_mark;
+        this->state = EYamlParserState::BlockSequenceFirstEntry;
+        event.InitSequenceStart(anchor, tag, implicit, EYamlSequenceStyle::Block, start_mark,
+                                end_mark);
+        return 1;
+      }
+      else if (isBlock && token->type == EYamlTokenType::BlockMappingStart)
+      {
+        end_mark    = token->end_mark;
+        this->state = EYamlParserState::BlockMappingFirstKey;
+        event.InitMappingStart(anchor, tag, implicit, EYamlMappingStyle::Block, start_mark,
+                               end_mark);
+        return 1;
+      }
+      else if (anchor || tag)
+      {
+        uint8_t* value = (decltype(value))this->Malloc(1);
+        if (!value)
+        {
+          this->error = EYamlError::Memory;
+          goto error;
+        }
+        value[0]    = '\0';
+        this->state = this->states.Pop();
+        event.InitScalar(anchor, tag, value, 0, implicit, 0, EYamlScalarStyle::Plain, start_mark,
+                         end_mark);
+        return 1;
+      }
+      else
+      {
+        this->SetParserErrorContext(
+            (isBlock ? "while parsing a block node" : "while parsing a flow node"), start_mark,
+            "did not find expected node content", token->start_mark);
+        goto error;
+      }
+    }
+  }
+
+error:
+  this->Free(anchor);
+  this->Free(tag_handle);
+  this->Free(tag_suffix);
+  this->Free(tag);
+
+  return 0;
 }
 
+/*
+ * Parse the productions:
+ * block_sequence ::= BLOCK-SEQUENCE-START (BLOCK-ENTRY block_node?)* BLOCK-END
+ *                    ********************  *********** *             *********
+ */
 bool YamlParser::ParseBlockSequenceEntry(YamlEvent& event, bool isFirst)
 {
-  return true;
+  YamlToken* token;
+
+  if (isFirst)
+  {
+    token = this->PeekToken();
+    if (!this->marks.Push(*this, token->start_mark)) return 0;
+    this->SkipToken();
+  }
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type == EYamlTokenType::BlockEntry)
+  {
+    YamlMark mark = token->end_mark;
+    this->SkipToken();
+    token = this->PeekToken();
+    if (!token) return 0;
+    if (token->type != EYamlTokenType::BlockEntry && token->type != EYamlTokenType::BlockEnd)
+    {
+      if (!this->states.Push(*this, EYamlParserState::BlockSequenceEntry)) return 0;
+      return this->ParseNode(event, 1, 0);
+    }
+    else
+    {
+      this->state = EYamlParserState::BlockSequenceEntry;
+      return this->ProcessEmptyScalar(event, mark);
+    }
+  }
+
+  else if (token->type == EYamlTokenType::BlockEnd)
+  {
+    this->state = this->states.Pop();
+    (void)this->marks.Pop();
+    event.InitSequenceEnd(token->start_mark, token->end_mark);
+    this->SkipToken();
+    return 1;
+  }
+
+  else
+  {
+    return this->SetParserErrorContext("while parsing a block collection", this->marks.Pop(),
+                                       "did not find expected '-' indicator", token->start_mark);
+  }
 }
 
+/*
+ * Parse the productions:
+ * indentless_sequence  ::= (BLOCK-ENTRY block_node?)+
+ *                           *********** *
+ */
 bool YamlParser::ParseIndentlessSequenceEntry(YamlEvent& event)
 {
-  return true;
+  YamlToken* token;
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type == EYamlTokenType::BlockEntry)
+  {
+    YamlMark mark = token->end_mark;
+    this->SkipToken();
+    token = this->PeekToken();
+    if (!token) return 0;
+    if (token->type != EYamlTokenType::BlockEntry && token->type != EYamlTokenType::Key &&
+        token->type != EYamlTokenType::Value && token->type != EYamlTokenType::BlockEnd)
+    {
+      if (!this->states.Push(*this, EYamlParserState::IndentlessSequenceEntry)) return 0;
+      return this->ParseNode(event, 1, 0);
+    }
+    else
+    {
+      this->state = EYamlParserState::IndentlessSequenceEntry;
+      return this->ProcessEmptyScalar(event, mark);
+    }
+  }
+
+  else
+  {
+    this->state = this->states.Pop();
+    event.InitSequenceEnd(token->start_mark, token->start_mark);
+    return 1;
+  }
 }
 
+/*
+ * Parse the productions:
+ * block_mapping        ::= BLOCK-MAPPING_START
+ *                          *******************
+ *                          ((KEY block_node_or_indentless_sequence?)?
+ *                            *** *
+ *                          (VALUE block_node_or_indentless_sequence?)?)*
+ *
+ *                          BLOCK-END
+ *                          *********
+ */
 bool YamlParser::ParseBlockMappingKey(YamlEvent& event, bool isFirst)
 {
-  return true;
+  YamlToken* token;
+
+  if (isFirst)
+  {
+    token = this->PeekToken();
+    if (!this->marks.Push(*this, token->start_mark)) return 0;
+    this->SkipToken();
+  }
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type == EYamlTokenType::Key)
+  {
+    YamlMark mark = token->end_mark;
+    this->SkipToken();
+    token = this->PeekToken();
+    if (!token) return 0;
+    if (token->type != EYamlTokenType::Key && token->type != EYamlTokenType::Value &&
+        token->type != EYamlTokenType::BlockEnd)
+    {
+      if (!this->states.Push(*this, EYamlParserState::BlockMappingValue)) return 0;
+      return this->ParseNode(event, 1, 1);
+    }
+    else
+    {
+      this->state = EYamlParserState::BlockMappingValue;
+      return this->ProcessEmptyScalar(event, mark);
+    }
+  }
+
+  else if (token->type == EYamlTokenType::BlockEnd)
+  {
+    this->state = this->states.Pop();
+    (void)this->marks.Pop();
+    event.InitMappingEnd(token->start_mark, token->end_mark);
+    this->SkipToken();
+    return 1;
+  }
+
+  else
+  {
+    return this->SetParserErrorContext("while parsing a block mapping", this->marks.Pop(),
+                                       "did not find expected key", token->start_mark);
+  }
 }
 
+/*
+ * Parse the productions:
+ * block_mapping        ::= BLOCK-MAPPING_START
+ *
+ *                          ((KEY block_node_or_indentless_sequence?)?
+ *
+ *                          (VALUE block_node_or_indentless_sequence?)?)*
+ *                           ***** *
+ *                          BLOCK-END
+ *
+ */
 bool YamlParser::ParseBlockMappingValue(YamlEvent& event)
 {
-  return true;
+  YamlToken* token;
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type == EYamlTokenType::Value)
+  {
+    YamlMark mark = token->end_mark;
+    this->SkipToken();
+    token = this->PeekToken();
+    if (!token) return 0;
+    if (token->type != EYamlTokenType::Key && token->type != EYamlTokenType::Value &&
+        token->type != EYamlTokenType::BlockEnd)
+    {
+      if (!this->states.Push(*this, EYamlParserState::BlockMappingKey)) return 0;
+      return this->ParseNode(event, 1, 1);
+    }
+    else
+    {
+      this->state = EYamlParserState::BlockMappingKey;
+      return this->ProcessEmptyScalar(event, mark);
+    }
+  }
+
+  else
+  {
+    this->state = EYamlParserState::BlockMappingKey;
+    return this->ProcessEmptyScalar(event, token->start_mark);
+  }
 }
 
+/*
+ * Parse the productions:
+ * flow_sequence        ::= FLOW-SEQUENCE-START
+ *                          *******************
+ *                          (flow_sequence_entry FLOW-ENTRY)*
+ *                           *                   **********
+ *                          flow_sequence_entry?
+ *                          *
+ *                          FLOW-SEQUENCE-END
+ *                          *****************
+ * flow_sequence_entry  ::= flow_node | KEY flow_node? (VALUE flow_node?)?
+ *                          *
+ */
 bool YamlParser::ParseFlowSequenceEntry(YamlEvent& event, bool isFirst)
 {
-  return true;
+  YamlToken* token;
+
+  if (isFirst)
+  {
+    token = this->PeekToken();
+    if (!this->marks.Push(*this, token->start_mark)) return 0;
+    this->SkipToken();
+  }
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type != EYamlTokenType::FlowSequenceEnd)
+  {
+    if (!isFirst)
+    {
+      if (token->type == EYamlTokenType::FlowEntry)
+      {
+        this->SkipToken();
+        token = this->PeekToken();
+        if (!token) return 0;
+      }
+      else
+      {
+        return this->SetParserErrorContext("while parsing a flow sequence", this->marks.Pop(),
+                                           "did not find expected ',' or ']'", token->start_mark);
+      }
+    }
+
+    if (token->type == EYamlTokenType::Key)
+    {
+      this->state = EYamlParserState::FlowSequenceEntryMappingKey;
+      event.InitMappingStart(nullptr, nullptr, 1, EYamlMappingStyle::Flow, token->start_mark,
+                             token->end_mark);
+      this->SkipToken();
+      return 1;
+    }
+
+    else if (token->type != EYamlTokenType::FlowSequenceEnd)
+    {
+      if (!this->states.Push(*this, EYamlParserState::FlowSequenceEntry)) return 0;
+      return this->ParseNode(event, 0, 0);
+    }
+  }
+
+  this->state = this->states.Pop();
+  (void)this->marks.Pop();
+  event.InitSequenceEnd(token->start_mark, token->end_mark);
+  this->SkipToken();
+  return 1;
 }
 
+/*
+ * Parse the productions:
+ * flow_sequence_entry  ::= flow_node | KEY flow_node? (VALUE flow_node?)?
+ *                                      *** *
+ */
 bool YamlParser::ParseFlowSequenceEntryMappingKey(YamlEvent& event)
 {
-  return true;
+  YamlToken* token;
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type != EYamlTokenType::Value && token->type != EYamlTokenType::FlowEntry &&
+      token->type != EYamlTokenType::FlowSequenceEnd)
+  {
+    if (!this->states.Push(*this, EYamlParserState::FlowSequenceEntryMappingValue)) return 0;
+    return this->ParseNode(event, 0, 0);
+  }
+  else
+  {
+    YamlMark mark = token->end_mark;
+    this->SkipToken();
+    this->state = EYamlParserState::FlowSequenceEntryMappingValue;
+    return this->ProcessEmptyScalar(event, mark);
+  }
 }
 
+/*
+ * Parse the productions:
+ * flow_sequence_entry  ::= flow_node | KEY flow_node? (VALUE flow_node?)?
+ *                                                      ***** *
+ */
 bool YamlParser::ParseFlowSequenceEntryMappingValue(YamlEvent& event)
 {
-  return true;
+  YamlToken* token;
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type == EYamlTokenType::Value)
+  {
+    this->SkipToken();
+    token = this->PeekToken();
+    if (!token) return 0;
+    if (token->type != EYamlTokenType::FlowEntry && token->type != EYamlTokenType::FlowSequenceEnd)
+    {
+      if (!this->states.Push(*this, EYamlParserState::FlowSequenceEntryMappingEnd)) return 0;
+      return this->ParseNode(event, 0, 0);
+    }
+  }
+  this->state = EYamlParserState::FlowSequenceEntryMappingEnd;
+  return this->ProcessEmptyScalar(event, token->start_mark);
 }
 
+/*
+ * Parse the productions:
+ * flow_sequence_entry  ::= flow_node | KEY flow_node? (VALUE flow_node?)?
+ *                                                                      *
+ */
 bool YamlParser::ParseFlowSequenceEntryMappingEnd(YamlEvent& event)
 {
-  return true;
+  YamlToken* token;
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  this->state = EYamlParserState::FlowSequenceEntry;
+
+  event.InitMappingEnd(token->start_mark, token->start_mark);
+  return 1;
 }
 
+/*
+ * Parse the productions:
+ * flow_mapping         ::= FLOW-MAPPING-START
+ *                          ******************
+ *                          (flow_mapping_entry FLOW-ENTRY)*
+ *                           *                  **********
+ *                          flow_mapping_entry?
+ *                          ******************
+ *                          FLOW-MAPPING-END
+ *                          ****************
+ * flow_mapping_entry   ::= flow_node | KEY flow_node? (VALUE flow_node?)?
+ *                          *           *** *
+ */
 bool YamlParser::ParseFlowMappingKey(YamlEvent& event, bool isFirst)
 {
-  return true;
+  YamlToken* token;
+
+  if (isFirst)
+  {
+    token = this->PeekToken();
+    if (!this->marks.Push(*this, token->start_mark)) return 0;
+    this->SkipToken();
+  }
+
+  token = this->PeekToken();
+  if (!token) return 0;
+
+  if (token->type != EYamlTokenType::FlowMappingEnd)
+  {
+    if (!isFirst)
+    {
+      if (token->type == EYamlTokenType::FlowEntry)
+      {
+        this->SkipToken();
+        token = this->PeekToken();
+        if (!token) return 0;
+      }
+      else
+      {
+        return this->SetParserErrorContext("while parsing a flow mapping", this->marks.Pop(),
+                                           "did not find expected ',' or '}'", token->start_mark);
+      }
+    }
+
+    if (token->type == EYamlTokenType::Key)
+    {
+      this->SkipToken();
+      token = this->PeekToken();
+      if (!token) return 0;
+      if (token->type != EYamlTokenType::Value && token->type != EYamlTokenType::FlowEntry &&
+          token->type != EYamlTokenType::FlowMappingEnd)
+      {
+        if (!this->states.Push(*this, EYamlParserState::FlowMappingValue)) return 0;
+        return this->ParseNode(event, 0, 0);
+      }
+      else
+      {
+        this->state = EYamlParserState::FlowMappingValue;
+        return this->ProcessEmptyScalar(event, token->start_mark);
+      }
+    }
+    else if (token->type != EYamlTokenType::FlowMappingEnd)
+    {
+      if (!this->states.Push(*this, EYamlParserState::FlowMappingEmptyValue)) return 0;
+      return this->ParseNode(event, 0, 0);
+    }
+  }
+
+  this->state = this->states.Pop();
+  (void)this->marks.Pop();
+  event.InitMappingEnd(token->start_mark, token->end_mark);
+  this->SkipToken();
+  return 1;
 }
 
+/*
+ * Parse the productions:
+ * flow_mapping_entry   ::= flow_node | KEY flow_node? (VALUE flow_node?)?
+ *                                   *                  ***** *
+ */
 bool YamlParser::ParseFlowMappingValue(YamlEvent& event, bool isEmpty)
 {
-  return true;
+  YamlToken* token = this->PeekToken();
+  if (!token)
+  {
+    return false;
+  }
+
+  if (isEmpty)
+  {
+    this->state = EYamlParserState::FlowMappingKey;
+    return this->ProcessEmptyScalar(event, token->start_mark);
+  }
+
+  if (token->type == EYamlTokenType::Value)
+  {
+    this->SkipToken();
+    token = this->PeekToken();
+    if (!token)
+    {
+      return false;
+    }
+    if (token->type != EYamlTokenType::FlowEntry && token->type != EYamlTokenType::FlowMappingEnd)
+    {
+      if (!this->states.Push(*this, EYamlParserState::FlowMappingKey))
+      {
+        return false;
+      }
+      return this->ParseNode(event, false, false);
+    }
+  }
+
+  this->state = EYamlParserState::FlowMappingKey;
+  return this->ProcessEmptyScalar(event, token->start_mark);
 }
 
 /*

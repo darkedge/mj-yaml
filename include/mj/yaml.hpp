@@ -160,7 +160,7 @@ public:
   void InitStreamStart(EYamlEncoding encoding, const YamlMark& start_mark,
                        const YamlMark& end_mark);
   void InitStreamEnd(const YamlMark& start_mark, const YamlMark& end_mark);
-  void InitDocumentStart(YamlVersionDirective version_directive,
+  void InitDocumentStart(YamlVersionDirective* version_directive,
                          YamlTagDirective* tag_directives_start,
                          YamlTagDirective* tag_directives_end, bool implicit,
                          const YamlMark& start_mark, const YamlMark& end_mark);
