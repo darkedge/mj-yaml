@@ -84,8 +84,6 @@ void BeginParse(char* str, size_t size)
   Fns.Strdup = _strdup;
   mj::YamlParser p(Fns, (const unsigned char*)str, size);
 
-  //p.input    = str;
-
   mj::YamlEvent event          = {};
   mj::EYamlEventType eventType = mj::EYamlEventType::None;
 
@@ -100,7 +98,7 @@ void BeginParse(char* str, size_t size)
     }
     else
     {
-      // TODO: log error
+      fprintf(stderr, "Failed to parse: %s\n", p.problem);
       break;
     }
   }
@@ -109,18 +107,21 @@ void BeginParse(char* str, size_t size)
 int main()
 {
   FILE* f = fopen("SampleScene.unity", "rb");
-  fseek(f, 0, SEEK_END);
-  long fsize = ftell(f);
-  fseek(f, 0, SEEK_SET); /* same as rewind(f); */
-
-  char* string = (char*)malloc(fsize + 1);
-  if (string)
+  if (f)
   {
-    fread(string, 1, fsize, f);
-    fclose(f);
-    string[fsize] = '\0';
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET); /* same as rewind(f); */
 
-    BeginParse(string, fsize);
-    free(string);
+    char* string = (char*)malloc(fsize + 1);
+    if (string)
+    {
+      fread(string, 1, fsize, f);
+      string[fsize] = '\0';
+
+      BeginParse(string, fsize);
+      free(string);
+    }
+    fclose(f);
   }
 }

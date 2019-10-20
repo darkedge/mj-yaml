@@ -4387,7 +4387,7 @@ error:
   this->Free(tag_suffix);
   this->Free(tag);
 
-  return 0;
+  return false;
 }
 
 /*

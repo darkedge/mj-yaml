@@ -506,8 +506,7 @@ struct YamlParser
   };
 
   string_t input;
-
-  //std::variant<string_t, FILE*> input;
+  const char* problem = nullptr;
 
 private:
   void SkipToken();
@@ -599,7 +598,6 @@ private:
   bool SetParserErrorContext(const char* context, YamlMark context_mark, const char* problem,
                              YamlMark problem_mark);
 
-  const char* problem   = nullptr;
   size_t problem_offset = 0;
   int problem_value     = 0;
   YamlMark problem_mark;
