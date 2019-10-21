@@ -48,8 +48,8 @@ void print_event(const mj::YamlEvent& event)
   case mj::EYamlEventType::Scalar:
     indent(level);
     printf("scalar-event={value=\"%s\", length=%d}\n",
-      STRVAL(std::get<mj::YamlEvent::scalar_t>(event.data).value),
-      (int)std::get<mj::YamlEvent::scalar_t>(event.data).length);
+           STRVAL(std::get<mj::YamlEvent::scalar_t>(event.data).value),
+           (int)std::get<mj::YamlEvent::scalar_t>(event.data).length);
     break;
   case mj::EYamlEventType::SequenceStart:
     indent(level++);
@@ -75,13 +75,42 @@ void print_event(const mj::YamlEvent& event)
   }
 }
 
+static int NumMalloc;
+static int NumRealloc;
+static int NumFree;
+static int NumStrdup;
+
+void* Malloc(size_t size)
+{
+  ++NumMalloc;
+  return malloc(size);
+}
+void* Realloc(void* ptr, size_t size)
+{
+  ++NumRealloc;
+  return realloc(ptr, size);
+}
+void Free(void* ptr)
+{
+  if (ptr)
+  {
+    ++NumFree;
+    free(ptr);
+  }
+}
+char* Strdup(const char* src)
+{
+  ++NumStrdup;
+  return _strdup(src);
+}
+
 void BeginParse(char* str, size_t size)
 {
   mj::YamlFns Fns;
-  Fns.Malloc = malloc;
-  Fns.Realloc = realloc;
-  Fns.Free = free;
-  Fns.Strdup = _strdup;
+  Fns.Malloc  = Malloc;
+  Fns.Realloc = Realloc;
+  Fns.Free    = Free;
+  Fns.Strdup  = Strdup;
   mj::YamlParser p(Fns, (const unsigned char*)str, size);
 
   mj::YamlEvent event          = {};
@@ -120,6 +149,13 @@ int main()
       string[fsize] = '\0';
 
       BeginParse(string, fsize);
+      printf("NumMalloc: %d\n", NumMalloc);
+      printf("NumRealloc: %d\n", NumRealloc);
+      printf("NumStrdup: %d\n", NumStrdup);
+      printf("Total: %d\n", NumMalloc + NumStrdup);
+
+      printf("NumFree: %d\n", NumFree);
+
       free(string);
     }
     fclose(f);

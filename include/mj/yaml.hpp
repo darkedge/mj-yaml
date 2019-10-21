@@ -358,7 +358,8 @@ struct YamlDocument
   YamlMark end_mark;
 };
 
-typedef int yaml_read_handler_t(YamlParser& parser, unsigned char* buffer, size_t size, size_t* size_read);
+typedef int yaml_read_handler_t(YamlParser& parser, unsigned char* buffer, size_t size,
+                                size_t* size_read);
 
 struct YamlSimpleKey
 {
@@ -443,7 +444,7 @@ struct YamlBuffer : public YamlString
 
 struct YamlRawBuffer : public YamlBuffer
 {
-  //unsigned char* last    = nullptr;
+  // unsigned char* last    = nullptr;
 };
 
 struct YamlAlias
@@ -456,7 +457,7 @@ struct YamlAlias
 typedef void* (*YamlMallocFn)(size_t size);
 typedef void* (*YamlReallocFn)(void* ptr, size_t size);
 typedef void (*YamlFreeFn)(void* ptr);
-typedef char* (*YamlStrdupFn)(const char*);
+typedef char* (*YamlStrdupFn)(const char* src);
 
 template <typename T>
 struct YamlQueue
@@ -477,10 +478,10 @@ struct YamlQueue
 
 struct YamlFns
 {
-  YamlMallocFn Malloc = nullptr;
+  YamlMallocFn Malloc   = nullptr;
   YamlReallocFn Realloc = nullptr;
-  YamlFreeFn Free = nullptr;
-  YamlStrdupFn Strdup = nullptr;
+  YamlFreeFn Free       = nullptr;
+  YamlStrdupFn Strdup   = nullptr;
 };
 
 struct YamlParser
@@ -490,7 +491,8 @@ struct YamlParser
   YamlFreeFn Free       = nullptr;
   YamlStrdupFn Strdup   = nullptr;
 
-  YamlParser(const YamlFns& Fns, const unsigned char *input, size_t size);
+  YamlParser(const YamlFns& Fns, const unsigned char* input, size_t size);
+  ~YamlParser();
 
   bool StateMachine(YamlEvent& parserEvent);
   EYamlError error = EYamlError::None;

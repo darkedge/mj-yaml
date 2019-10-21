@@ -1208,6 +1208,14 @@ bool YamlParser::Scan(YamlToken& token)
   if (token.type == EYamlTokenType::StreamEnd)
   {
     this->stream_end_produced = true;
+
+    // Clear tag directives stack
+    while (!this->tag_directives.Empty())
+    {
+      YamlTagDirective tag_directive = this->tag_directives.Pop();
+      this->Free(tag_directive.handle);
+      this->Free(tag_directive.prefix);
+    }
   }
 
   return true;
@@ -3818,7 +3826,7 @@ void YamlEvent::InitStreamStart(EYamlEncoding encoding, const YamlMark& start_ma
 
   stream_start_t stream_start;
   stream_start.encoding = encoding;
-  this->data = stream_start;
+  this->data            = stream_start;
 }
 
 void YamlEvent::InitStreamEnd(const YamlMark& start_mark, const YamlMark& end_mark)
@@ -3838,7 +3846,7 @@ void YamlEvent::InitDocumentStart(YamlVersionDirective* version_directive,
   document_start.tag_directives.start = tag_directives_start;
   document_start.tag_directives.end   = tag_directives_end;
   document_start.implicit             = implicit;
-  this->data = document_start;
+  this->data                          = document_start;
 }
 
 void YamlEvent::InitDocumentEnd(bool implicit, const YamlMark& start_mark, const YamlMark& end_mark)
@@ -3847,7 +3855,7 @@ void YamlEvent::InitDocumentEnd(bool implicit, const YamlMark& start_mark, const
 
   document_end_t document_end;
   document_end.implicit = implicit;
-  this->data = document_end;
+  this->data            = document_end;
 }
 
 void YamlEvent::InitAlias(uint8_t* anchor, const YamlMark& start_mark, const YamlMark& end_mark)
@@ -3856,7 +3864,7 @@ void YamlEvent::InitAlias(uint8_t* anchor, const YamlMark& start_mark, const Yam
 
   alias_t alias;
   alias.anchor = anchor;
-  this->data = alias;
+  this->data   = alias;
 }
 
 void YamlEvent::InitScalar(uint8_t* anchor, uint8_t* tag, uint8_t* value, size_t length,
@@ -3873,7 +3881,7 @@ void YamlEvent::InitScalar(uint8_t* anchor, uint8_t* tag, uint8_t* value, size_t
   scalar.plain_implicit  = plain_implicit;
   scalar.quoted_implicit = quoted_implicit;
   scalar.style           = style;
-  this->data = scalar;
+  this->data             = scalar;
 }
 
 void YamlEvent::InitSequenceStart(uint8_t* anchor, uint8_t* tag, bool implicit,
@@ -3887,7 +3895,7 @@ void YamlEvent::InitSequenceStart(uint8_t* anchor, uint8_t* tag, bool implicit,
   sequence_start.tag      = tag;
   sequence_start.implicit = implicit;
   sequence_start.style    = style;
-  this->data = sequence_start;
+  this->data              = sequence_start;
 }
 
 void YamlEvent::InitSequenceEnd(const YamlMark& start_mark, const YamlMark& end_mark)
@@ -3906,7 +3914,7 @@ void YamlEvent::InitMappingStart(uint8_t* anchor, uint8_t* tag, bool implicit,
   mapping_start.tag      = tag;
   mapping_start.implicit = implicit;
   mapping_start.style    = style;
-  this->data = mapping_start;
+  this->data             = mapping_start;
 }
 
 void YamlEvent::InitMappingEnd(const YamlMark& start_mark, const YamlMark& end_mark)
@@ -4145,12 +4153,9 @@ bool YamlParser::ParseDocumentEnd(YamlEvent& event)
     implicit = 0;
   }
 
-  while (!this->tag_directives.Empty())
-  {
-    YamlTagDirective tag_directive = this->tag_directives.Pop();
-    this->Free(tag_directive.handle);
-    this->Free(tag_directive.prefix);
-  }
+  // Note: libyaml originally clears the tag directives stack here,
+  // but that is incompatible with Unity's YAML (1.1) files.
+  // It has been moved to the stream end.
 
   this->state = EYamlParserState::DocumentStart;
   event.InitDocumentEnd(implicit, start_mark, end_mark);
@@ -5108,6 +5113,30 @@ error:
   this->states.Del(*this);
   this->marks.Del(*this);
   this->tag_directives.Del(*this);
+}
+
+YamlParser::~YamlParser()
+{
+  this->raw_buffer.Del(*this);
+  this->buffer.Del(*this);
+  while (!this->tokens.Empty())
+  {
+    this->tokens.Dequeue().Delete(*this);
+  }
+  this->tokens.Del(*this);
+  this->indents.Del(*this);
+  this->simple_keys.Del(*this);
+  this->states.Del(*this);
+  this->marks.Del(*this);
+  while (!this->tag_directives.Empty())
+  {
+    YamlTagDirective tag_directive = this->tag_directives.Pop();
+    this->Free(tag_directive.handle);
+    this->Free(tag_directive.prefix);
+  }
+  this->tag_directives.Del(*this);
+
+  memset(this, 0, sizeof(*this));
 }
 
 /*
